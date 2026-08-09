@@ -1,172 +1,132 @@
-const express = require("express");
-const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-const db = require("../database");
+const JWT_SECRET = process.env.JWT_SECRET;
 
-const router = express.Router();
+module.exports = (req, res, next) => {
+    console.log("=================================");
+    console.log("AUTH MIDDLEWARE");
 
-const JWT_SECRET =
-    process.env.JWT_SECRET;
+    // Check secret
+    if (!JWT_SECRET) {
+        console.error("❌ JWT_SECRET is missing");
 
-
-// =========================
-// REGISTER
-// =========================
-
-router.post("/register", async (req, res) => {
-
-    const { name, email, password } = req.body;
-
-    if (!name || !email || !password) {
-        return res.status(400).json({
-            message: "All fields are required"
+        return res.status(500).json({
+            success: false,
+            message: "JWT_SECRET is not configured"
         });
     }
 
-    try {
+    console.log("JWT_SECRET exists:", true);
+    console.log("JWT_SECRET length:", JWT_SECRET.length);
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+    // Get Authorization header
+    const authHeader = req.headers.authorization;
 
-        const sql = `
-            INSERT INTO users
-            (name, email, password)
-            VALUES (?, ?, ?)
-        `;
+    console.log(
+        "Authorization header exists:",
+        !!authHeader
+    );
 
-        db.run(
-            sql,
-            [name, email, hashedPassword],
-            function (err) {
+    if (!authHeader) {
+        console.error("❌ Authorization header missing");
 
-                if (err) {
+        return res.status(401).json({
+            success: false,
+            message: "Access denied. Token required."
+        });
+    }
 
-                    if (err.message.includes("UNIQUE")) {
-                        return res.status(400).json({
-                            message: "Email already exists"
-                        });
-                    }
+    console.log(
+        "Authorization format:",
+        authHeader.substring(0, 20) + "..."
+    );
 
-                    return res.status(500).json({
-                        message: "Database error"
-                    });
-                }
-
-                const token = jwt.sign(
-                    {
-                        id: this.lastID,
-                        email: email
-                    },
-                    JWT_SECRET,
-                    {
-                        expiresIn: "7d"
-                    }
-                );
-
-                res.status(201).json({
-                    message: "Account created successfully",
-                    token,
-                    user: {
-                        id: this.lastID,
-                        name,
-                        email
-                    }
-                });
-
-            }
+    // Check Bearer
+    if (!authHeader.startsWith("Bearer ")) {
+        console.error(
+            "❌ Invalid Authorization format"
         );
+
+        return res.status(401).json({
+            success: false,
+            message: "Invalid authorization format"
+        });
+    }
+
+    // Extract token
+    const token = authHeader
+        .substring(7)
+        .trim();
+
+    console.log(
+        "Token exists:",
+        !!token
+    );
+
+    console.log(
+        "Token length:",
+        token.length
+    );
+
+    if (!token) {
+        return res.status(401).json({
+            success: false,
+            message: "Access denied. Token required."
+        });
+    }
+
+    // Verify JWT
+    try {
+        const decoded = jwt.verify(
+            token,
+            JWT_SECRET
+        );
+
+        console.log(
+            "✅ JWT VERIFIED"
+        );
+
+        console.log(
+            "User ID:",
+            decoded.id
+        );
+
+        console.log(
+            "Email:",
+            decoded.email
+        );
+
+        console.log(
+            "Token expires:",
+            new Date(decoded.exp * 1000)
+        );
+
+        req.user = {
+            id: decoded.id,
+            email: decoded.email
+        };
+
+        next();
 
     } catch (error) {
 
-        res.status(500).json({
-            message: "Server error"
-        });
+        console.error(
+            "❌ JWT VERIFICATION FAILED"
+        );
 
-    }
-});
+        console.error(
+            "Error name:",
+            error.name
+        );
 
+        console.error(
+            "Error message:",
+            error.message
+        );
 
-// =========================
-// LOGIN
-// =========================
-
-router.post("/login", (req, res) => {
-
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-        return res.status(400).json({
-            message: "Email and password are required"
+        return res.status(401).json({
+            success: false,
+            message: "Invalid or expired token"
         });
     }
-
-    db.get(
-        "SELECT * FROM users WHERE email = ?",
-        [email],
-        async (err, user) => {
-
-            if (err) {
-                return res.status(500).json({
-                    message: "Database error"
-                });
-            }
-
-            if (!user) {
-                return res.status(401).json({
-                    message: "Invalid email or password"
-                });
-            }
-
-            const passwordMatch = await bcrypt.compare(
-                password,
-                user.password
-            );
-
-            if (!passwordMatch) {
-                return res.status(401).json({
-                    message: "Invalid email or password"
-                });
-            }
-
-            const token = jwt.sign(
-                {
-                    id: user.id,
-                    email: user.email
-                },
-                JWT_SECRET,
-                {
-                    expiresIn: "7d"
-                }
-            );
-
-            // Update online status
-            db.run(
-                `
-                UPDATE users
-                SET status = 'online',
-                    last_seen = CURRENT_TIMESTAMP
-                WHERE id = ?
-                `,
-                [user.id]
-            );
-
-            res.json({
-                message: "Login successful",
-
-                token,
-
-                user: {
-                    id: user.id,
-                    name: user.name,
-                    email: user.email,
-                    avatar: user.avatar,
-                    status: "online"
-                }
-            });
-
-        }
-    );
-});
-
-
-module.exports = router;
+};

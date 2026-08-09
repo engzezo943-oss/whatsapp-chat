@@ -1,15 +1,25 @@
 const mysql = require("mysql2");
 
-const pool = mysql.createPool({
-    host: process.env.MYSQLHOST,
-    port: process.env.MYSQLPORT || 3306,
-    user: process.env.MYSQLUSER,
-    password: process.env.MYSQLPASSWORD,
-    database: "railway", // كتبناها صراحة لأنها غالباً اسم قاعدة البيانات الافتراضي في Railway
+const mysqlUrl = process.env.MYSQL_URL;
 
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
+console.log("MYSQL_URL exists:", !!mysqlUrl);
+
+if (!mysqlUrl) {
+    console.error("MYSQL_URL is missing!");
+}
+
+const pool = mysql.createPool(mysqlUrl);
+
+pool.getConnection((err, connection) => {
+    if (err) {
+        console.error(
+            "MySQL connection error:",
+            err.message
+        );
+    } else {
+        console.log("MySQL database connected");
+        connection.release();
+    }
 });
 // =========================
 // Test Connection

@@ -8,7 +8,6 @@ const auth = require("../middleware/auth");
 
 const router = express.Router();
 
-
 // =====================================
 // Profiles Upload Folder
 // =====================================
@@ -24,7 +23,6 @@ if (!fs.existsSync(uploadDir)) {
     });
 }
 
-
 // =====================================
 // Multer Storage
 // =====================================
@@ -36,33 +34,46 @@ const storage = multer.diskStorage({
     },
 
     filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        const filename = `user-${req.user.id}-${Date.now()}${ext}`;
+
+        const ext = path.extname(
+            file.originalname
+        );
+
+        const filename =
+            `user-${req.user.id}-${Date.now()}${ext}`;
+
         cb(null, filename);
     }
 
 });
 
-
 // =====================================
-// File Filter (Images & Videos)
+// File Filter
 // =====================================
 
 const fileFilter = (req, file, cb) => {
 
     if (
         file.mimetype &&
-        (file.mimetype.startsWith("image/") || file.mimetype.startsWith("video/"))
+        (
+            file.mimetype.startsWith("image/") ||
+            file.mimetype.startsWith("video/")
+        )
     ) {
         cb(null, true);
     } else {
         cb(
-            new Error("Only image and video files are allowed")
+            new Error(
+                "Only image and video files are allowed"
+            )
         );
     }
 
 };
 
+// =====================================
+// Upload Configuration
+// =====================================
 
 const upload = multer({
 
@@ -71,20 +82,45 @@ const upload = multer({
     fileFilter,
 
     limits: {
-        fileSize: 50 * 1024 * 1024 // رفع الحد الأقصى إلى 50 ميجابايت
+        fileSize: 50 * 1024 * 1024
     }
 
 });
 
-
 // =====================================
-// Get Users
+// GET USERS
 // =====================================
 
 router.get(
     "/",
     auth,
     (req, res) => {
+
+        console.log(
+            "GET /api/users"
+        );
+
+        console.log(
+            "Authenticated user:",
+            req.user
+        );
+
+        // ---------------------------------
+        // Check authentication
+        // ---------------------------------
+
+        if (!req.user || !req.user.id) {
+
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized"
+            });
+
+        }
+
+        // ---------------------------------
+        // Get all users except current user
+        // ---------------------------------
 
         db.all(
             `
@@ -94,26 +130,46 @@ router.get(
                 email,
                 avatar,
                 status,
-                last_seen
+                last_seen,
+                created_at
             FROM users
             WHERE id != ?
             ORDER BY name ASC
             `,
             [req.user.id],
+
             (err, users) => {
 
                 if (err) {
+
                     console.error(
                         "Get users error:",
                         err
                     );
 
                     return res.status(500).json({
+                        success: false,
                         message: "Database error"
                     });
+
                 }
 
-                res.json(users);
+                console.log(
+                    "Users returned:",
+                    users.length
+                );
+
+                // ---------------------------------
+                // Return consistent API response
+                // ---------------------------------
+
+                return res.json({
+
+                    success: true,
+
+                    users: users || []
+
+                });
 
             }
         );
@@ -121,6 +177,78 @@ router.get(
     }
 );
 
+// =====================================
+// GET SINGLE USER
+// =====================================
+
+router.get(
+    "/:id",
+    auth,
+    (req, res) => {
+
+        const userId = Number(
+            req.params.id
+        );
+
+        if (!userId) {
+
+            return res.status(400).json({
+                success: false,
+                message: "Invalid user ID"
+            });
+
+        }
+
+        db.get(
+            `
+            SELECT
+                id,
+                name,
+                email,
+                avatar,
+                status,
+                last_seen,
+                created_at
+            FROM users
+            WHERE id = ?
+            `,
+            [userId],
+
+            (err, user) => {
+
+                if (err) {
+
+                    console.error(
+                        "Get single user error:",
+                        err
+                    );
+
+                    return res.status(500).json({
+                        success: false,
+                        message: "Database error"
+                    });
+
+                }
+
+                if (!user) {
+
+                    return res.status(404).json({
+                        success: false,
+                        message: "User not found"
+                    });
+
+                }
+
+                return res.json({
+                    success: true,
+                    user
+                });
+
+            }
+        );
+
+    }
+);
 
 // =====================================
 // Upload Profile Avatar
@@ -142,17 +270,18 @@ router.post(
             req.file
         );
 
-
         if (!req.file) {
-            return res.status(400).json({
-                message: "Please select an image or video"
-            });
-        }
 
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Please select an image or video"
+            });
+
+        }
 
         const avatarUrl =
             `/uploads/profiles/${req.file.filename}`;
-
 
         db.run(
             `
@@ -164,29 +293,35 @@ router.post(
                 avatarUrl,
                 req.user.id
             ],
+
             function (err) {
 
                 if (err) {
+
                     console.error(
                         "Avatar database error:",
                         err
                     );
 
                     return res.status(500).json({
-                        message: "Failed to update avatar"
+                        success: false,
+                        message:
+                            "Failed to update avatar"
                     });
-                }
 
+                }
 
                 console.log(
                     "Avatar saved:",
                     avatarUrl
                 );
 
+                return res.json({
 
-                res.json({
                     success: true,
+
                     avatar: avatarUrl
+
                 });
 
             }
@@ -195,5 +330,8 @@ router.post(
     }
 );
 
+// =====================================
+// Export
+// =====================================
 
 module.exports = router;
