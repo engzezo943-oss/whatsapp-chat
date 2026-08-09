@@ -5,12 +5,9 @@
 }
 
 body {
-  font-family:
-      Inter,
-      Arial,
-      sans-serif;
-
+  font-family: Inter, Arial, sans-serif;
   background: var(--bg-secondary, #f0f2f5);
+  overflow: hidden;
 }
 
 button,
@@ -29,44 +26,32 @@ button {
 
 .auth-page {
   min-height: 100vh;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   background: #f0f2f5;
 }
 
 .auth-card {
   width: 400px;
-
   padding: 40px;
-
   background: white;
-
   border-radius: 16px;
-
-  box-shadow:
-      0 10px 40px rgba(0,0,0,.08);
-
+  box-shadow: 0 10px 40px rgba(0,0,0,.08);
   text-align: center;
 }
 
 .logo {
   width: 65px;
   height: 65px;
-
   margin: 0 auto 15px;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   border-radius: 50%;
-
   background: #25d366;
-
   font-size: 30px;
+  color: white;
 }
 
 .auth-card h1 {
@@ -75,28 +60,21 @@ button {
 
 .subtitle {
   margin: 8px 0 25px;
-
   color: #667781;
 }
 
 .auth-card form {
   display: flex;
   flex-direction: column;
-
   gap: 14px;
 }
 
 .auth-card input {
   width: 100%;
-
   padding: 14px;
-
   border: 1px solid #ddd;
-
   border-radius: 8px;
-
   outline: none;
-
   font-size: 15px;
 }
 
@@ -106,47 +84,32 @@ button {
 
 .auth-card form > button {
   padding: 14px;
-
   border: none;
-
   border-radius: 8px;
-
   background: #25d366;
-
   color: white;
-
   font-weight: bold;
-
   font-size: 15px;
 }
 
 .error {
   padding: 10px;
-
   border-radius: 6px;
-
   background: #ffe5e5;
-
   color: #d00;
-
   font-size: 14px;
 }
 
 .switch-auth {
   margin-top: 20px;
-
   color: #667781;
 }
 
 .link-button {
   margin-left: 5px;
-
   border: none;
-
   background: none;
-
   color: #128c7e;
-
   font-weight: bold;
 }
 
@@ -157,6 +120,7 @@ button {
 
 .app {
   height: 100vh;
+  width: 100vw;
   display: flex;
   overflow: hidden;
 
@@ -192,11 +156,13 @@ button {
 ========================= */
 
 .sidebar {
-  width: 360px;
+  width: 380px;
+  min-width: 300px;
   background: var(--bg-primary);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .sidebar-header {
@@ -339,6 +305,8 @@ button {
   display: flex;
   flex-direction: column;
   background: var(--chat-bg);
+  height: 100%;
+  min-width: 0;
 }
 
 .chat-header {
@@ -520,6 +488,21 @@ button {
   color: var(--text-secondary);
 }
 
+.message-reactions-display {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.reaction-badge {
+  background: var(--bg-secondary);
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+}
+
 .reaction-picker {
   position: absolute;
   bottom: 30px;
@@ -557,7 +540,7 @@ button {
   align-items: center;
   justify-content: center;
   text-align: center;
-  background: var(--bg-secondary);
+  background: var(--chat-bg);
 }
 
 .empty-icon {
@@ -677,19 +660,35 @@ button {
 ========================= */
 
 @media (max-width: 768px) {
+  .app {
+    position: relative;
+  }
+
   .sidebar {
-      width: 100%;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 2;
+    transition: transform 0.3s ease;
   }
 
   .chat-window {
-      display: none;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 3;
   }
 
+  /* لو تم اختيار محادثة، نخفي السايدبار وندخل الشات على الموبايل */
   .sidebar.has-chat {
-      display: none;
+    display: none;
   }
 
   .message {
-      max-width: 80%;
+    max-width: 80%;
   }
 }
