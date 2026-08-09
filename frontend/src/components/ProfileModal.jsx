@@ -9,7 +9,7 @@ import API from "../api";
 
 
 const SERVER_URL =
-    "http://localhost:5000";
+    "https://whatsapp-chat-production-91c0.up.railway.app";
 
 
 export default function ProfileModal({

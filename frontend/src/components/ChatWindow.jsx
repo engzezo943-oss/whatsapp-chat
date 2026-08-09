@@ -3,7 +3,7 @@ import { Send, Paperclip, X, Smile } from "lucide-react";
 import { io } from "socket.io-client";
 import API from "../api";
 
-const socket = io("http://localhost:5000");
+const socket = io("https://whatsapp-chat-production-91c0.up.railway.app");
 
 const reactions = [
     "❤️",
@@ -323,7 +323,7 @@ export default function ChatWindow({ currentUser, selectedUser }) {
                                         src={
                                             item.content.startsWith("http")
                                                 ? item.content
-                                                : `http://localhost:5000${item.content}`
+                                                : `https://whatsapp-chat-production-91c0.up.railway.app${item.content}`
                                         }
                                         className="chat-image"
                                         alt="sent"

@@ -24,7 +24,7 @@ export default function Sidebar({
                                 src={
                                     user.avatar.startsWith("http")
                                         ? user.avatar
-                                        : `http://localhost:5000${user.avatar}`
+                                        : `https://whatsapp-chat-production-91c0.up.railway.app${user.avatar}`
                                 }
                                 alt={user.name}
                             />
@@ -81,7 +81,7 @@ export default function Sidebar({
                                     src={
                                         item.avatar.startsWith("http")
                                             ? item.avatar
-                                            : `http://localhost:5000${item.avatar}`
+                                            : `https://whatsapp-chat-production-91c0.up.railway.app${item.avatar}`
                                     }
                                     alt={item.name}
                                 />
