@@ -5,13 +5,12 @@ const pool = mysql.createPool({
     port: process.env.MYSQLPORT || 3306,
     user: process.env.MYSQLUSER,
     password: process.env.MYSQLPASSWORD,
-    database: process.env.MYSQL_DATABASE, // تم التصحيح هنا بإضافة الشرطة السفلية
+    database: process.env.MYSQL_DATABASE || process.env.MYSQLDATABASE, // بيدور على الاتنين عشان يضمن يلاقيه
 
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
 });
-
 // =========================
 // Test Connection
 // =========================
