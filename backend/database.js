@@ -1,158 +1,344 @@
-const sqlite3 = require("sqlite3").verbose();
+const mysql = require("mysql2");
 
-const db = new sqlite3.Database("./chat.db", (err) => {
+const pool = mysql.createPool({
+    host: process.env.MYSQLHOST,
+    port: process.env.MYSQLPORT || 3306,
+    user: process.env.MYSQLUSER,
+    password: process.env.MYSQLPASSWORD,
+    database: process.env.MYSQLDATABASE,
+
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+});
+
+// =========================
+// Test Connection
+// =========================
+
+pool.getConnection((err, connection) => {
 
     if (err) {
 
         console.error(
-            "Database connection error:",
+            "MySQL connection error:",
             err.message
         );
 
     } else {
 
         console.log(
-            "SQLite database connected"
+            "MySQL database connected"
         );
+
+        connection.release();
 
     }
 
 });
 
 
-db.serialize(() => {
+// =====================================================
+// SQLite-compatible wrapper
+// =====================================================
+
+const db = {
 
     // =========================
-    // Users
+    // db.run()
     // =========================
 
-    db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run(sql, params = [], callback = () => {}) {
 
-            name TEXT NOT NULL,
+        pool.execute(
+            sql,
+            params,
+            function (err, result) {
 
-            email TEXT UNIQUE NOT NULL,
+                if (err) {
+                    return callback.call(
+                        {},
+                        err
+                    );
+                }
 
-            password TEXT NOT NULL,
+                callback.call(
+                    {
+                        lastID: result.insertId,
+                        changes: result.affectedRows
+                    },
+                    null
+                );
 
-            avatar TEXT,
+            }
+        );
 
-            status TEXT DEFAULT 'offline',
-
-            last_seen DATETIME,
-
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-
-
-    // =========================
-    // Conversations
-    // =========================
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS conversations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-            type TEXT DEFAULT 'private',
-
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
+    },
 
 
     // =========================
-    // Conversation Members
+    // db.get()
     // =========================
 
-    db.run(`
-        CREATE TABLE IF NOT EXISTS conversation_members (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+    get(sql, params = [], callback = () => {}) {
 
-            conversation_id INTEGER NOT NULL,
+        pool.execute(
+            sql,
+            params,
+            (err, rows) => {
 
-            user_id INTEGER NOT NULL,
+                if (err) {
+                    return callback(
+                        err
+                    );
+                }
 
-            FOREIGN KEY (conversation_id)
+                callback(
+                    null,
+                    rows[0]
+                );
+
+            }
+        );
+
+    },
+
+
+    // =========================
+    // db.all()
+    // =========================
+
+    all(sql, params = [], callback = () => {}) {
+
+        pool.execute(
+            sql,
+            params,
+            (err, rows) => {
+
+                if (err) {
+                    return callback(
+                        err
+                    );
+                }
+
+                callback(
+                    null,
+                    rows
+                );
+
+            }
+        );
+
+    },
+
+
+    // =========================
+    // db.prepare()
+    // =========================
+
+    prepare(sql) {
+
+        return {
+
+            run(...params) {
+
+                pool.execute(
+                    sql,
+                    params
+                );
+
+            },
+
+            finalize() {
+
+                // MySQL does not need SQLite-style finalize
+                return;
+
+            }
+
+        };
+
+    }
+
+};
+
+
+// =====================================================
+// Create Tables
+// =====================================================
+
+const createTables = [
+
+    `
+    CREATE TABLE IF NOT EXISTS users (
+
+        id INT AUTO_INCREMENT PRIMARY KEY,
+
+        name VARCHAR(255) NOT NULL,
+
+        email VARCHAR(255) UNIQUE NOT NULL,
+
+        password VARCHAR(255) NOT NULL,
+
+        avatar TEXT,
+
+        status VARCHAR(50) DEFAULT 'offline',
+
+        last_seen DATETIME NULL,
+
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+
+    )
+    `,
+
+
+    `
+    CREATE TABLE IF NOT EXISTS conversations (
+
+        id INT AUTO_INCREMENT PRIMARY KEY,
+
+        type VARCHAR(50) DEFAULT 'private',
+
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+
+    )
+    `,
+
+
+    `
+    CREATE TABLE IF NOT EXISTS conversation_members (
+
+        id INT AUTO_INCREMENT PRIMARY KEY,
+
+        conversation_id INT NOT NULL,
+
+        user_id INT NOT NULL,
+
+        FOREIGN KEY (conversation_id)
             REFERENCES conversations(id)
             ON DELETE CASCADE,
 
-            FOREIGN KEY (user_id)
+        FOREIGN KEY (user_id)
             REFERENCES users(id)
             ON DELETE CASCADE,
 
-            UNIQUE(conversation_id, user_id)
-        )
-    `);
+        UNIQUE(conversation_id, user_id)
+
+    )
+    `,
 
 
-    // =========================
-    // Messages
-    // =========================
+    `
+    CREATE TABLE IF NOT EXISTS messages (
 
-    db.run(`
-        CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id INT AUTO_INCREMENT PRIMARY KEY,
 
-            conversation_id INTEGER NOT NULL,
+        conversation_id INT NOT NULL,
 
-            sender_id INTEGER NOT NULL,
+        sender_id INT NOT NULL,
 
-            content TEXT NOT NULL,
+        content TEXT NOT NULL,
 
-            message_type TEXT DEFAULT 'text',
+        message_type VARCHAR(50) DEFAULT 'text',
 
-            is_read INTEGER DEFAULT 0,
+        is_read TINYINT DEFAULT 0,
 
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
-            FOREIGN KEY (conversation_id)
+        FOREIGN KEY (conversation_id)
             REFERENCES conversations(id)
             ON DELETE CASCADE,
 
-            FOREIGN KEY (sender_id)
+        FOREIGN KEY (sender_id)
             REFERENCES users(id)
             ON DELETE CASCADE
-        )
-    `);
+
+    )
+    `,
 
 
-    // =========================
-    // Message Reactions
-    // =========================
+    `
+    CREATE TABLE IF NOT EXISTS message_reactions (
 
-    db.run(`
-        CREATE TABLE IF NOT EXISTS message_reactions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
 
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        message_id INT NOT NULL,
 
-            message_id INTEGER NOT NULL,
+        user_id INT NOT NULL,
 
-            user_id INTEGER NOT NULL,
+        reaction VARCHAR(20) NOT NULL,
 
-            reaction TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-
-            FOREIGN KEY (message_id)
+        FOREIGN KEY (message_id)
             REFERENCES messages(id)
             ON DELETE CASCADE,
 
-            FOREIGN KEY (user_id)
+        FOREIGN KEY (user_id)
             REFERENCES users(id)
             ON DELETE CASCADE,
 
-            UNIQUE(message_id, user_id)
-        )
-    `);
+        UNIQUE(message_id, user_id)
+
+    )
+    `
+
+];
 
 
-    console.log(
-        "Database tables ready"
-    );
+// =========================
+// Run Tables
+// =========================
 
-});
+function initializeDatabase() {
 
+    let index = 0;
+
+    function next() {
+
+        if (index >= createTables.length) {
+
+            console.log(
+                "MySQL database tables ready"
+            );
+
+            return;
+
+        }
+
+        pool.query(
+            createTables[index],
+            (err) => {
+
+                if (err) {
+
+                    console.error(
+                        "Table creation error:",
+                        err.message
+                    );
+
+                    return;
+
+                }
+
+                index++;
+
+                next();
+
+            }
+        );
+
+    }
+
+    next();
+
+}
+
+initializeDatabase();
+
+
+// =========================
+// Export
+// =========================
 
 module.exports = db;

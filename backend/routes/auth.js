@@ -6,7 +6,8 @@ const db = require("../database");
 
 const router = express.Router();
 
-const JWT_SECRET = "MY_SUPER_SECRET_KEY";
+const JWT_SECRET =
+    process.env.JWT_SECRET;
 
 
 // =========================
