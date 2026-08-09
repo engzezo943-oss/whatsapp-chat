@@ -5,7 +5,7 @@ const pool = mysql.createPool({
     port: process.env.MYSQLPORT || 3306,
     user: process.env.MYSQLUSER,
     password: process.env.MYSQLPASSWORD,
-    database: process.env.MYSQL_DATABASE || process.env.MYSQLDATABASE, // بيدور على الاتنين عشان يضمن يلاقيه
+    database: "railway", // كتبناها صراحة لأنها غالباً اسم قاعدة البيانات الافتراضي في Railway
 
     waitForConnections: true,
     connectionLimit: 10,
