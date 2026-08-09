@@ -21,9 +21,27 @@ const app = express();
 const server = http.createServer(app);
 
 // =========================
-// Middleware
+// Middleware & CORS Configuration
 // =========================
-app.use(cors());
+const allowedOrigins = [
+    "https://whatsapp-chat-kappa-five.vercel.app", // رابط Vercel الخاص بك
+    "http://localhost:5173",
+    "http://localhost:3000"
+];
+
+app.use(cors({
+    origin: function (origin, callback) {
+        // السماح بالطلبات التي ليس لها origin (مثل Postman أو تطبيقات الجوال)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            return callback(new Error("CORS policy violation: This origin is not allowed."), false);
+        }
+        return callback(null, true);
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+}));
+
 app.use(express.json());
 
 // ملفات الصور
@@ -55,7 +73,9 @@ app.get("/", (req, res) => {
 // =========================
 const io = new Server(server, {
     cors: {
-        origin: "*"
+        origin: allowedOrigins,
+        methods: ["GET", "POST"],
+        credentials: true
     }
 });
 
@@ -95,7 +115,7 @@ io.on("connection", (socket) => {
     });
 
     // =================================
-    // MESSAGE REACTION (معدل وصحيح داخل الـ Connection)
+    // MESSAGE REACTION
     // =================================
     socket.on("message_reaction", (data) => {
         const {
@@ -105,7 +125,6 @@ io.on("connection", (socket) => {
             reaction
         } = data;
 
-        // إرسال التفاعل لكل المتواجدين في السيرفر أو للغرفة الخاصة بالمحادثة
         io.emit("reaction_updated", {
             messageId,
             conversationId,
